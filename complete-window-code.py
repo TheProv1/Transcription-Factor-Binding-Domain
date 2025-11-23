@@ -69,9 +69,6 @@ def analyze_transcription_factors_in_file(filepath: str, window_size: int, outpu
                 out_file.write(f"Transcription factor: {sequence_str}\n\n")
                 out_file.write("Output (Unique Patterns and their Total Counts):\n")
                 if len(sequence_str) >= window_size:
-                    # --- CORRECTED LOGIC HERE ---
-                    # Instead of re-sliding the window, iterate through the unique, sorted items
-                    # from the counter to produce a clean, summarized report.
                     for pattern, count in sorted(total_occurrences.items()):
                         out_file.write(f"  {pattern} - {count}\n")
                 else:
