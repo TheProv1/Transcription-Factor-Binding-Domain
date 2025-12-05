@@ -115,6 +115,3 @@ In order to separate the transcription factors from each other within a single `
     5.  Generates a bar chart visualizing this ratio.
 
 *   **Output:** Creates a directory (`amino_acid_disorder_ratios`) containing two subdirectories (`DBD_ratios`, `nonDBD_ratios`), which hold the `.png` bar chart images for each superclass.
-
----
-*(Note: `complete-window-code.py` is an older version of `DBD-Non-DBD-Window-Code.py` that runs on the raw data instead of the split regions.)*
