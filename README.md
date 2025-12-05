@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project is a collection of Python scripts designed to perform a multi-stage analysis on a hierarchically organized dataset of transcription factor protein sequences. The pipeline automates the process of parsing raw data, extracting functionally relevant protein domains, analyzing their biophysical properties, and visualizing their sequence composition.
+This project is a collection of Python scripts designed to perform a multi-stage analysis on a hierarchically organized dataset of transcription factor protein sequences. The pipeline automates the process of parsing raw data, extracting functionally relevant protein domains, analyzing their biophysical properties, and summarizing their sequence composition.
 
 ## Dataset Description/Information
 
@@ -12,29 +12,45 @@ For example, the file `1/1.1/1.1.1/1.1.1.1.txt` will be refered to as belonging 
 
 Each subfamily contains one or more `.txt` files, and within each `.txt` file there can exist multiple transcription factors. Each transcription factor is a long chain of amino acids.
 
-Note: Here `ANCHOR` refers to the last column in the text file - also known as the `DBD Flag`
+Note: In the original data, `ANCHOR` refers to the last column in the text file and is used as the `DBD Flag`.
 
 *   **DBD Region** - Refers to the region where the protein binds to the DNA, which in turn activates/enables gene expression. In this dataset, this is identified by the `ANCHOR` column being `"Yes"`.
 *   **Non-DBD Region** - The remaining region of the protein that does not bind to DNA.
-
-It is hypothesized that the DBD region is structurally ordered, while the Non-DBD region is intrinsically disordered.
 
 In order to separate the transcription factors from each other within a single `.txt` file, we keep checking the **POS_IU** Header (the 5th column). When the residue number in the current line is less than the previous line, it signifies a reset, and we consider it the end of one transcription factor and the beginning of a new one. This process continues till the end of the file.
 
 ---
 ## Script Descriptions
 
-### `DBD-Splitting-Code.py`
+### `DBD-Non-DBD-Split.py`
 
-*   **Purpose:** This is the primary data cleaning and preprocessing script. Its goal is to parse the entire raw dataset and extract only the functionally relevant ANCHOR/DBD regions into a new, clean, and organized directory structure.
+*   **Purpose:** This is the foundational preprocessing script. It reads the entire raw dataset and separates every transcription factor into two distinct parts: its DNA-Binding Domain (DBD) and its non-DBD region.
 
-*   **Input:** The raw `NR_HI_IU` directory containing the original data.
+*   **Input:** The raw `NR_HI_IU` directory.
 
 *   **Process:**
     1.  Recursively scans every `.txt` file in the `NR_HI_IU` directory.
     2.  Identifies the boundaries of individual transcription factors by detecting resets in the `POS_IU` column.
-    3.  For each transcription factor, it filters for rows where the `ANCHOR` column (the 8th column) is exactly `"Yes"`.
-    4.  It selects and reformats only the last four columns: `POS_IU`, `RES_IU`, `IU`, and `ANCHOR`.
+    3.  For each transcription factor, it inspects the `ANCHOR` column (the 8th column).
+    4.  It writes all rows where `ANCHOR` is `"Yes"` to a new file in the `DBD-Region` directory.
+    5.  It concatenates all other rows (where `ANCHOR` is `"No"`) and writes them to a corresponding file in the `Non-DBD-Region` directory.
+    6.  The output files are simplified to contain only the four IUPred-related columns (`POS_IU`, `RES_IU`, `IU`, `ANCHOR`).
+
+*   **Output:** Creates two directories:
+    *   `DBD-Region`: Contains `.txt` files, each holding the isolated DBD region of a single transcription factor.
+    *   `Non-DBD-Region`: Contains `.txt` files, each holding the isolated non-DBD region of a single transcription factor.
+
+---
+### `DBD-Splitting-Code.py`
+
+*   **Purpose:** A specialized version of the splitting script that extracts *only* the ANCHOR/DBD regions into a clean, organized directory structure, sorted by family. This is useful for analyses focused exclusively on DBDs.
+
+*   **Input:** The raw `NR_HI_IU` directory.
+
+*   **Process:**
+    1.  Identical to `DBD-Non-DBD-Split.py` but only performs the DBD extraction logic.
+    2.  It filters for rows where the `ANCHOR` column is `"Yes"`.
+    3.  It selects and reformats only the last four columns: `POS_IU`, `RES_IU`, `IU`, and `ANCHOR`.
 
 *   **Output:** Creates a new directory (e.g., `DBD_Split` or `ANCHOR_regions_by_family`) containing the extracted ANCHOR region files. These new files are sorted into subdirectories named after the family they belong to (e.g., `1.1.1`, `1.1.2`, etc.).
 
@@ -43,11 +59,11 @@ In order to separate the transcription factors from each other within a single `
 
 *   **Purpose:** To analyze the extracted ANCHOR/DBD regions and filter them based on their level of intrinsic disorder.
 
-*   **Input:** The `DBD_Split` directory generated by `DBD-Splitting-Code.py`.
+*   **Input:** A directory of split DBD regions (e.g., `DBD_Split`).
 
 *   **Process:**
     1.  Prompts the user to enter a disorder percentage threshold (e.g., `80`).
-    2.  Iterates through every ANCHOR region file in the `DBD_Split` directory.
+    2.  Iterates through every file in the input directory.
     3.  For each file, it calculates the disorder percentage using the formula:
         `Disorder % = (Number of amino acids with IUPred Score > 0.5 / Total number of amino acids) * 100`
     4.  It compares this calculated percentage to the user's input threshold.
@@ -55,30 +71,50 @@ In order to separate the transcription factors from each other within a single `
 *   **Output:** Creates a single `.csv` file named dynamically (e.g., `DBD_disorder_above_80.csv`). This file contains two columns: `filename` and `disorder_percentage`, listing only the files that met or exceeded the specified disorder threshold.
 
 ---
-### `complete-window-code.py`
+### `DBD-Non-DBD-Window-Code.py`
 
-*   **Purpose:** To perform a comprehensive compositional analysis on the *full* original protein sequences by counting the frequency of all possible amino acid patterns (k-mers).
+*   **Purpose:** To perform a comprehensive compositional analysis on the cleaned and separated DBD and non-DBD regions.
 
-*   **Input:** The original, raw `NR_HI_IU` directory.
+*   **Input:** The `DBD-Region` and `Non-DBD-Region` directories generated by `DBD-Non-DBD-Split.py`.
 
 *   **Process:**
-    1.  Initiates a loop that iterates through window sizes from 3 to 11.
-    2.  For each window size, it recursively traverses the entire `NR_HI_IU` directory.
-    3.  It uses a sliding window of the current size (e.g., 3 for triplets) to count the occurrences of every unique amino acid pattern within each individual transcription factor.
+    1.  Runs two main jobs: one for the DBD directory, and one for the non-DBD directory.
+    2.  For each job, it initiates a loop that iterates through window sizes from 3 to 11.
+    3.  It uses a sliding window of the current size (e.g., 3 for triplets) to count the occurrences of every unique amino acid pattern within each region file.
 
-*   **Output:** Creates a large `output` directory. This directory is structured by window size (e.g., `output/3/`, `output/4/`, etc.), which in turn are organized by filename. Each final `.txt` file contains a detailed list of every pattern found and its total count for a specific transcription factor.
+*   **Output:** Creates two large master directories:
+    *   `DBD-region-Window-Output`: Structured by window size (e.g., `3/`, `4/`), containing the analysis for all DBD regions.
+    *   `Non-DBD-Window-Output`: Similarly structured, containing the analysis for all non-DBD regions.
+
+---
+### `Occurence-CSV-generator.py`
+
+*   **Purpose:** To aggregate the detailed window analysis results into a structured, comparable matrix format for each superclass and region type.
+
+*   **Input:** The `DBD-region-Window-Output/3/` and `Non-DBD-Window-Output/3/` directories.
+
+*   **Process:**
+    1.  Runs multiple jobs, one for each superclass and region combination (e.g., Superclass 1 DBD, Superclass 1 non-DBD, etc.).
+    2.  **Pass 1 (Header Discovery):** For each job, it scans all relevant files to find every unique triplet that occurs 3 or more times. This set of triplets forms the header.
+    3.  **Pass 2 (Data Population):** It re-scans the files and populates a matrix where rows are transcription factors and columns are the frequent triplets. The cells contain the actual occurrence count for that triplet in that factor (or 0 if it's absent or has a count < 3).
+
+*   **Output:** Generates four (or more) summary CSV files, such as `superclass_1_DBD_summary.csv`, `superclass_1_nonDBD_summary.csv`, etc.
 
 ---
 ### `Amino-Acid-Distribution.py`
 
-*   **Purpose:** To visualize the amino acid composition of the most statistically significant patterns discovered by the window analysis.
+*   **Purpose:** To perform a comparative biophysical analysis by visualizing the propensity of each amino acid to be in an ordered versus a disordered state.
 
-*   **Input:** The `output/3/` directory generated by `complete-window-code.py`.
+*   **Input:** The `DBD-Region` and `Non-DBD-Region` directories.
 
 *   **Process:**
-    1.  Reads each analysis file from the `output/3/` directory.
-    2.  Identifies all triplets (3-amino-acid chains) that have an occurrence count of 3 or more.
-    3.  It then calculates a **weighted distribution** of the individual amino acids that make up *only these frequent triplets*. For example, if the triplet `AAA` occurred 6 times, it contributes `6 * 3 = 18` counts of the amino acid 'A' to the total.
-    4.  Generates a bar chart (histogram) visualizing this amino acid distribution, with the total count displayed on top of each bar.
+    1.  Runs two main jobs: one for DBDs and one for non-DBDs.
+    2.  For each job, it iterates through a list of superclasses.
+    3.  Within each superclass, it counts the total number of times each amino acid appears in an **ordered state (IUPred < 0.5)** and a **disordered state (IUPred >= 0.5)**.
+    4.  It calculates a **Disorder-to-Order Ratio** for each amino acid.
+    5.  Generates a bar chart visualizing this ratio.
 
-*   **Output:** Creates a directory named `frequent_triplet_histograms` containing a `.png` histogram image for each transcription factor that had frequent triplets.
+*   **Output:** Creates a directory (`amino_acid_disorder_ratios`) containing two subdirectories (`DBD_ratios`, `nonDBD_ratios`), which hold the `.png` bar chart images for each superclass.
+
+---
+*(Note: `complete-window-code.py` is an older version of `DBD-Non-DBD-Window-Code.py` that runs on the raw data instead of the split regions.)*
