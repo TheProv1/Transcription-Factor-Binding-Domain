@@ -1,7 +1,7 @@
 import os
 import csv
 
-BASE_FOLDER: str = "DBD_Split"
+BASE_FOLDER: str = "DBD-Region"
 IU_COLUMN_INDEX: int = 2
 
 def calculate_disorder_ratio(filepath: str) -> float:
