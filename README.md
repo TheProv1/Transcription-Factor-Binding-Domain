@@ -115,3 +115,48 @@ In order to separate the transcription factors from each other within a single `
     5.  Generates a bar chart visualizing this ratio.
 
 *   **Output:** Creates a directory (`amino_acid_disorder_ratios`) containing two subdirectories (`DBD_ratios`, `nonDBD_ratios`), which hold the `.png` bar chart images for each superclass.
+
+---
+### `Disorder-by-Order-Normalized.py`
+
+*   **Purpose:** To perform a more sophisticated biophysical analysis by calculating a normalized score that indicates an amino acid's preference for ordered or disordered states, relative to its overall abundance.
+
+*   **Input:** The `DBD-Region` and `Non-DBD-Region` directories.
+
+*   **Process:**
+    1.  Runs two main jobs, one for DBDs and one for non-DBDs.
+    2.  For each job and for each superclass, it aggregates four key values: the individual count of each amino acid in an ordered state (`Oi`), the individual count in a disordered state (`Di`), the total count of all ordered residues (`Otot`), and the total count of all disordered residues (`Dtot`).
+    3.  It then calculates the **Normalized Disorder Preference Score** for each amino acid using the formula:
+        `Score = (Di/Dtot - Oi/Otot) / (Di/Dtot + Oi/Otot)`
+    4.  A score of +1 indicates a complete preference for disordered regions, -1 indicates a complete preference for ordered regions, and 0 indicates no preference.
+
+*   **Output:** Creates a directory (`amino_acid_normalized_disorder`) containing subdirectories (`DBD_normalized_scores`, `nonDBD_normalized_scores`), which hold the `.png` bar chart images of these scores for each superclass.
+
+---
+### `Excel-to-fasta-merged.py` & `convert-to-fasta.py`
+
+*   **Purpose:** These scripts handle the integration of an external dataset (provided as `Human-TFs-PDB.xls` and `ExtraIDs.fasta`) with the existing data.
+
+*   **Input:** `Human-TFs-PDB.xls` and `ExtraIDs.fasta`.
+
+*   **Process:**
+    1.  The first script (`Excel-to-fasta-merged.py`, also referred to as `merge_sequences.py`) intelligently parses the Excel and FASTA files. It matches IDs from the "ExtraIDs" sheet to their corresponding sequences in the FASTA file, resolving ID formatting inconsistencies (e.g., matching `7QOD` with `7QOD_1`).
+    2.  It appends these new sequences to the primary "All-Human" data sheet, creating a new, consolidated `Human-TFs-PDB_MERGED.xlsx` file.
+    3.  The second script (`convert-to-fasta.py`, or `merged_excel_to_fasta.py`) reads this new merged Excel file and converts it into a single, master FASTA file (`all_sequences.fasta`).
+
+*   **Output:** The final `all_sequences.fasta` file, which contains every protein sequence from the original and supplementary datasets, ready for homology analysis.
+
+---
+### `less-than-25-similarity.py`
+
+*   **Purpose:** To identify and list all pairs of transcription factors from the master dataset that are highly dissimilar (i.e., share less than 25% sequence identity). This script works in conjunction with the command-line tool NCBI BLAST+.
+
+*   **Input:** The master `all_sequences.fasta` file generated previously.
+
+*   **Process:**
+    1.  **BLAST Analysis (Manual Step):** An all-vs-all `blastp` search is first performed on `all_sequences.fasta` to generate a comprehensive `similar_pairs.tsv` file containing all significant alignments.
+    2.  **Filtering:** The Python script (`less-than-25-similarity.py`, also referred to as `filter_blast_results.py`) reads this raw `similar_pairs.tsv` file.
+    3.  It inspects the percent identity (column 3) for every alignment reported by BLAST.
+    4.  It keeps only the pairs where the percent identity is explicitly **less than 25%**.
+
+*   **Output:** A single CSV file (`dissimilar_pairs_lt25_with_scores.csv`) containing three columns: `Sequence_1`, `Sequence_2`, and `Percent_Identity`, providing a verifiable list of all highly divergent protein pairs.
